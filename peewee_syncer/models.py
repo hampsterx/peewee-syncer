@@ -3,19 +3,21 @@ from datetime import date
 from datetime import datetime
 
 from dateutil import parser
-from peewee import Model, CharField, DateTimeField, TextField
+from peewee import Model, Proxy, CharField, DateTimeField, TextField
 
 
-class BaseModel(Model):
-    @classmethod
-    def get_db(kls):
-        return kls._meta.database
-
-
-class SyncManager(BaseModel):
+class SyncManager(Model):
     app = CharField(max_length=256, primary_key=True)
     meta = TextField(default="{}")
     modified = DateTimeField(null=True)
+
+    @classmethod
+    def init_db(cls, db):
+        cls.get_db().initialize(db)
+
+    @classmethod
+    def get_db(cls):
+        return cls._meta.database
 
     def get_meta(self):
         return json.loads(self.meta)
@@ -50,5 +52,6 @@ class SyncManager(BaseModel):
         self.set_meta({'value': value, "type": value_type, 'offset': offset})
 
     class Meta:
-        table = "sync_manager"
+        table_name = "sync_manager"
+        database = Proxy()
 

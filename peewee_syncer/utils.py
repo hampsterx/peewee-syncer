@@ -39,3 +39,21 @@ def test_bulk(it):
     import pprint
     for item in it:
         pprint.pprint(item)
+
+
+def upsert_db_bulk(model, it, update_columns=[]):
+    n = 0
+
+    for items in chunks(it, 100):
+
+        items = list(items)
+
+        model.insert_many(items).on_conflict(
+            action='UPDATE',
+            preserve=update_columns,
+        ).execute()
+
+        n += 1
+
+        if n % 50 == 0:
+            print(".", end="", flush=True)
