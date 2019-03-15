@@ -3,9 +3,11 @@ from .models import SyncManager
 
 
 def chunks(iterable, n):
-    while True:
-        yield itertools.chain((next(iterable),), itertools.islice(iterable, n - 1))
-
+    try:
+        while True:
+            yield itertools.chain((next(iterable),), itertools.islice(iterable, n - 1))
+    except StopIteration:
+        return
 
 def get_sync_manager(app, start, test=None):
     if test and start:

@@ -24,7 +24,7 @@ class LastOffsetQueryIterator:
         for row in self.iterator:
             self.n = self.n + 1
 
-            value = getattr(row, self.compare_field)
+            value = row[self.compare_field] if isinstance(row, dict) else getattr(row, self.compare_field)
             if self.last_updates[-1] != value:
                 self.last_updates.append(value)
 
@@ -34,10 +34,10 @@ class LastOffsetQueryIterator:
 
 
 class Processor:
-    def __init__(self, sync_manager, model, process_function):
+    def __init__(self, sync_manager, it_function, process_function):
+        self.it_function = it_function
         self.process_function = process_function
         self.sync_manager = sync_manager
-        self.model = model
 
 
     def process(self, limit, i):
@@ -50,13 +50,9 @@ class Processor:
 
             last_offset = self.sync_manager.get_last_offset()
 
-            with self.model.get_db().connection_context():
+            it = self.it_function(since=last_offset['value'], limit=limit)
 
-                q = getattr(self.model, self.QUERY_MODEL_FUNCTION)(last_offset['value'], limit=limit)
-
-                it = LastOffsetQueryIterator(q.iterator(), row_output_fun=self.row_output, compare_field=self.COMPARE_FIELD)
-
-                self.process_function(it.iterate())
+            self.process_function(it.iterate())
 
             if self.sync_manager.is_test_run:
                 log.debug("Stopping after iteration (test in progress). Processed {} records".format(it.n))
