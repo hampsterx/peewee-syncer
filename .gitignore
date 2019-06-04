@@ -8,3 +8,4 @@ notes.txt
 *.conf
 *.json
 *.sh
+*.db
