@@ -1,6 +1,6 @@
 # Peewee Syncer
 
- [![PyPI version](https://badge.fury.io/py/peewee_syncer.svg)](https://badge.fury.io/py/peewee_syncer) [![Python 3.6](https://img.shields.io/badge/python-3.6-blue.svg)](https://www.python.org/downloads/release/python-360/) [![Python 3.6](https://img.shields.io/badge/python-3.7-blue.svg)](https://www.python.org/downloads/release/python-370/)
+ [![PyPI version](https://badge.fury.io/py/peewee-syncer.svg)](https://badge.fury.io/py/peewee-syncer) [![Python 3.6](https://img.shields.io/badge/python-3.6-blue.svg)](https://www.python.org/downloads/release/python-360/) [![Python 3.6](https://img.shields.io/badge/python-3.7-blue.svg)](https://www.python.org/downloads/release/python-370/)
 
 
 Tiny tool to help syncronize data using peewee db model for state persistance.
