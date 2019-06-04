@@ -9,3 +9,6 @@ notes.txt
 *.json
 *.sh
 *.db
+.tox
+
+temp.py

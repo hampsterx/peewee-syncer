@@ -1,5 +1,6 @@
 import os
 import logging
+import logging
 from unittest import TestCase
 from peewee import SqliteDatabase, Model, IntegerField
 from peewee_syncer.models import SyncManager
@@ -8,7 +9,7 @@ from peewee_syncer import get_sync_manager, Processor, LastOffsetQueryIterator
 logging.getLogger('peewee').setLevel(logging.INFO)
 
 
-iteration = 0
+log = logging.getLogger(__name__)
 
 
 class SyncerTests(TestCase):
@@ -16,14 +17,17 @@ class SyncerTests(TestCase):
     Syncer Tests
     """
 
-    def test_sync(self):
-
+    def get_test_db(self):
         try:
             os.remove('test.db')
         except FileNotFoundError:
             pass
 
-        db = SqliteDatabase('test.db')
+        return SqliteDatabase('test.db')
+
+    def test_sync(self):
+
+        db = self.get_test_db()
 
         SyncManager.init_db(db)
         SyncManager.create_table()
@@ -41,11 +45,11 @@ class SyncerTests(TestCase):
                 return item.id
 
             @classmethod
-            def select_by_id(cls, since, limit):
+            def select_since_id(cls, since, limit):
                 q = cls.select().where(cls.id > since)
 
                 if limit:
-                   q = q.limit(limit)
+                    q = q.limit(limit)
 
                 return q
 
@@ -59,36 +63,42 @@ class SyncerTests(TestCase):
                                         test=None
                                         )
 
-        row = SyncManager.get(SyncManager.app == "test")
-        print(row.meta)
+        output = []
 
         def row_output(model):
-            return {'id' : model.id, 'value': model.value}
+            data = {'id': model.id, 'value': model.value}
+            output.append(data)
+            return data
 
-        for x in range(1,5):
-            for i in range(1,5):
-                TestModel.create(value=x)
+        for i in range(25):
+            TestModel.create(id=i + 1, value=i + 1)
 
-        # print(TestModel.select().count())
+        self.assertEqual(25, TestModel.select().count())
 
-
+        iteration = 0
 
         def process(it):
-            global iteration
+            nonlocal iteration
             iteration += 1
             for x in it:
-                print("it:{} - id:{} - value: {}".format(iteration, x['id'], x['value']))
+                log.debug("process it={} id={}".format(iteration, x['id']))
 
         def it(since, limit):
-            q = TestModel.select_by_id(since, limit=limit)
-            return LastOffsetQueryIterator(q.iterator(), row_output_fun=row_output, since_fun=TestModel.get_value, key_fun=TestModel.get_key )
+            log.debug("it since={} limit={}".format(since, limit))
+            q = TestModel.select_since_id(since, limit=limit)
+            return LastOffsetQueryIterator(q.iterator(), row_output_fun=row_output,
+                                           key_fun=TestModel.get_key, is_unique_key=True)
 
         processor = Processor(
             sync_manager=sync_manager,
             it_function=it,
-            process_function=process
+            process_function=process,
+            sleep_duration=0
         )
 
-        processor.process(limit=16, i=4)
+        processor.process(limit=10, i=5)
 
-        raise
+        self.assertEqual(len(output), 25)
+
+        self.assertEqual(output[0]['id'], 1)
+        self.assertEqual(output[-1]['id'], 25)

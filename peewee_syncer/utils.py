@@ -26,7 +26,7 @@ def get_sync_manager(app, start, test=None):
                 raise Exception("cannot start with existing state. Clear it out first!")
 
             if created:
-                if start:
+                if start is not None:
                     state.set_last_offset(start, 0)
                     state.save()
                 else:
@@ -43,7 +43,7 @@ def test_bulk(it):
         pprint.pprint(item)
 
 
-def upsert_db_bulk(model, it, update_columns=[]):
+def upsert_db_bulk(model, it, preserve=[], conflict_target=None):
     n = 0
 
     for items in chunks(it, 100):
@@ -52,7 +52,8 @@ def upsert_db_bulk(model, it, update_columns=[]):
 
         model.insert_many(items).on_conflict(
             action='UPDATE',
-            preserve=update_columns,
+            preserve=preserve,
+            conflict_target=conflict_target
         ).execute()
 
         n += 1
