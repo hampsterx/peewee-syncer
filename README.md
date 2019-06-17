@@ -4,6 +4,7 @@
 
 
 Tiny tool to help syncronize data using peewee db model for state persistance.
+See (towards end) for AsyncIO Support
 
 ## Install
 
@@ -192,5 +193,68 @@ peewee_syncer INFO Completed processing
 peewee DEBUG ('SELECT COUNT(1) FROM (SELECT 1 FROM "mysyncmodel" AS "t1") AS "_wrapped"', [])
 __main__ INFO MySyncModel has 24 records
 
+
+```
+
+## AsyncIO
+
+Uses peewee-async (https://github.com/05bit/peewee-async)
+Note: SQLite not supported yet: see https://github.com/05bit/peewee-async/issues/126
+
+
+```
+pip install peewee-syncer[async]
+```
+
+or (includes `aiopg`)
+
+```
+pip install peewee-syncer[async-pg]
+```
+
+or (includes `aiomysql`)
+
+```
+pip install peewee-syncer[async-mysql]
+```
+
+
+```
+from peewee_syncer import get_sync_manager, AsyncProcessor
+
+db_object = Manager(db, loop=None)
+
+def it(since=None, limit=None):
+
+    log.debug("Getting iterator since={} limit={}".format(since, limit))
+
+    def dummy():
+        for x in range(since+1, since+limit+1):
+            log.debug("yielded {}".format(x))
+            yield {"x": x}
+
+    return LastOffsetQueryIterator(dummy(), row_output_fun=lambda x:x, key_fun=lambda x:x['x'], is_unique_key=True)
+
+output = []
+
+async def process(it):
+    nonlocal output
+    for item in it:
+        output.append(item)
+        log.debug("process item: {}".format(item))
+
+
+processor = AsyncProcessor(
+    sync_manager=sync_manager,
+    it_function=it,
+    process_function=process,
+    object=db_object
+)
+
+async def consume():
+    await processor.process(limit=10, i=3)
+
+
+asyncio.get_event_loop().run_until_complete(consume())
 
 ```

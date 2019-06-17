@@ -22,5 +22,12 @@ setup(name='peewee-syncer',
       install_requires=[
             'peewee>=3.8.1',
             'python-dateutil>=2.7.5',
-      ]
+      ],
+    extras_require={
+        "async": ["peewee-async==0.6.0a0"],
+        "async-pg": ["peewee-asyn==0.6.0a0", "aiopg>=0.16.0"],
+        "async-mysql": ["peewee-asyn==0.6.0a0", "aiomysql>=0.0.20"],
+
+    }
 )
+

@@ -1,23 +1,23 @@
 import os
 import logging
-import logging
+import asyncio
+from dotenv import load_dotenv
 from unittest import TestCase
+from peewee_async import MySQLDatabase as AsyncMySQLDatabase, Manager
 from peewee import SqliteDatabase, Model, IntegerField
-from peewee_syncer.models import SyncManager
-from peewee_syncer import get_sync_manager, Processor, LastOffsetQueryIterator
+from peewee_syncer import get_sync_manager, Processor, AsyncProcessor, LastOffsetQueryIterator
 
 logging.getLogger('peewee').setLevel(logging.INFO)
+
+# used for async test as cannot support sqlite
+load_dotenv()
 
 
 log = logging.getLogger(__name__)
 
+class BaseTestCase(TestCase):
 
-class SyncerTests(TestCase):
-    """
-    Syncer Tests
-    """
-
-    def get_test_db(self):
+    def get_sqlite_db(self):
         try:
             os.remove('test.db')
         except FileNotFoundError:
@@ -25,9 +25,17 @@ class SyncerTests(TestCase):
 
         return SqliteDatabase('test.db')
 
-    def test_sync(self):
 
-        db = self.get_test_db()
+class SyncerTests(BaseTestCase):
+    """
+    Syncer Tests
+    """
+
+    def test(self):
+
+        db = self.get_sqlite_db()
+
+        from peewee_syncer.models import SyncManager
 
         SyncManager.init_db(db)
         SyncManager.create_table()
@@ -102,3 +110,92 @@ class SyncerTests(TestCase):
 
         self.assertEqual(output[0]['id'], 1)
         self.assertEqual(output[-1]['id'], 25)
+
+
+class AsyncSyncerTests(BaseTestCase):
+    """
+    Async Syncer Tests
+    Note: Not supported with SQLite yet: https://github.com/05bit/peewee-async/issues/126
+
+    """
+
+    def get_mysql_db(self):
+        # uses .env via load_dotenv()
+
+        DB_NAME = os.environ.get("DB_NAME", "test")
+        DB_HOST = os.environ["DB_HOST"]
+        DB_PORT = int(os.environ.get("DB_port", "3306"))
+        DB_USERNAME = os.environ["DB_USERNAME"]
+        DB_PASSWORD = os.environ["DB_PASSWORD"]
+
+        db = AsyncMySQLDatabase(
+            database=DB_NAME,
+            user=DB_USERNAME,
+            host=DB_HOST,
+            port=DB_PORT,
+            password=DB_PASSWORD
+        )
+
+        return db
+
+
+    def test(self):
+
+        db = self.get_mysql_db()
+
+        from peewee_syncer.models import SyncManager
+
+        # Init/Create in sync mode
+        SyncManager.init_db(db)
+        SyncManager.create_table()
+
+        # Clear out from previous test run
+        SyncManager.delete().execute()
+
+        sync_manager = get_sync_manager(app="test-async", start=0)
+
+        # Now disable sync
+        db.set_allow_sync(False)
+
+        # Fiddle the db for peewee-async to be happy (todo: fixme)
+        SyncManager._meta.database = db
+
+        # todo: fixme
+        db_object = Manager(db, loop=None)
+
+        def it(since=None, limit=None):
+
+            log.debug("Getting iterator since={} limit={}".format(since, limit))
+
+            def dummy():
+                for x in range(since+1, since+limit+1):
+                    log.debug("yielded {}".format(x))
+                    yield {"x": x}
+
+            return LastOffsetQueryIterator(dummy(), row_output_fun=lambda x:x, key_fun=lambda x:x['x'], is_unique_key=True)
+
+        output = []
+
+        async def process(it):
+            nonlocal output
+            for item in it:
+                output.append(item)
+                log.debug("process item: {}".format(item))
+
+
+        processor = AsyncProcessor(
+            sync_manager=sync_manager,
+            it_function=it,
+            process_function=process,
+            object=db_object
+        )
+
+        async def consume():
+            await processor.process(limit=10, i=3)
+
+
+        asyncio.get_event_loop().run_until_complete(consume())
+
+        self.assertEqual(len(output), 30)
+
+        #raise

@@ -5,6 +5,8 @@ dist
 build
 notes.txt
 
+.env
+
 *.conf
 *.json
 *.sh
