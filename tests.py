@@ -163,7 +163,7 @@ class AsyncSyncerTests(BaseTestCase):
         # todo: fixme
         db_object = Manager(db, loop=None)
 
-        def it(since=None, limit=None):
+        async def it(since=None, limit=None):
 
             log.debug("Getting iterator since={} limit={}".format(since, limit))
 

@@ -99,9 +99,18 @@ class Processor:
 
 class AsyncProcessor(Processor):
 
-    def __init__(self, sync_manager, it_function, process_function, object):
-        super().__init__(sync_manager=sync_manager, it_function=it_function, process_function=process_function)
+    def __init__(self, object, sync_manager, it_function, process_function, sleep_duration=3):
+        super().__init__(sync_manager=sync_manager, it_function=it_function, process_function=process_function, sleep_duration=sleep_duration)
         self.object = object
+
+    async def get_last_offset_and_iterator(self, limit):
+
+        last_offset = self.sync_manager.get_last_offset()
+
+        it = await self.it_function(since=last_offset['value'], limit=limit)
+
+        return last_offset, it
+
 
     async def process(self, limit, i):
 
@@ -110,7 +119,7 @@ class AsyncProcessor(Processor):
             if self.should_stop(i=i, n=n):
                 break
 
-            last_offset, it = self.get_last_offset_and_iterator(limit=limit)
+            last_offset, it = await self.get_last_offset_and_iterator(limit=limit)
 
             await self.process_function(it.iterate())
 
@@ -129,6 +138,7 @@ class AsyncProcessor(Processor):
                                extra={'n': it.n, 'offset': final_offset})
 
                 if final_offset and final_offset != last_offset['value']:
+                    # todo: sleep based on % of limit
                     if final_offset:
                         self.sync_manager.set_last_offset(final_offset, 0)
                 else:
