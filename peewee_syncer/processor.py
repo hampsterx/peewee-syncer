@@ -66,6 +66,9 @@ class Processor:
 
             last_offset, it = self.get_last_offset_and_iterator(limit=limit)
 
+            if not it:
+                break
+
             self.process_function(it.iterate())
 
             if self.sync_manager.is_test_run:
@@ -120,6 +123,9 @@ class AsyncProcessor(Processor):
                 break
 
             last_offset, it = await self.get_last_offset_and_iterator(limit=limit)
+
+            if not it:
+                break
 
             await self.process_function(it.iterate())
 
