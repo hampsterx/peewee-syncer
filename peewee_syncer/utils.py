@@ -9,7 +9,11 @@ def chunks(iterable, n):
     except StopIteration:
         return
 
-def get_sync_manager(app, start, test=None):
+def get_sync_manager(app, start, test=None, db=None, set_async=None):
+
+    if db:
+        SyncManager.init_db(db)
+
     if test and start:
         raise Exception("start or test only. NOT BOTH!")
 
@@ -33,6 +37,11 @@ def get_sync_manager(app, start, test=None):
                     raise Exception("start required!")
 
             state.is_test_run = False
+
+    if set_async:
+        # Fiddle the db for peewee-async to be happy
+        SyncManager._meta.database = db
+        SyncManager.set_async()
 
     return state
 

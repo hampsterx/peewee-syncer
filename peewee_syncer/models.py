@@ -16,6 +16,10 @@ class SyncManager(Model):
         cls.get_db().initialize(db)
 
     @classmethod
+    def set_async(cls):
+        cls._meta.database.set_allow_sync(False)
+
+    @classmethod
     def get_db(cls):
         return cls._meta.database
 
