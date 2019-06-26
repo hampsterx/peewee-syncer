@@ -20,6 +20,11 @@ class SyncManager(Model):
         cls._meta.database.set_allow_sync(False)
 
     @classmethod
+    def get_async_manager(cls):
+        from peewee_async import Manager
+        return Manager(cls._meta.database)
+
+    @classmethod
     def get_db(cls):
         return cls._meta.database
 
