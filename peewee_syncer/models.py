@@ -11,8 +11,15 @@ class SyncManager(Model):
     meta = TextField(default="{}")
     modified = DateTimeField(null=True)
 
+    is_test_run = False
+
     @classmethod
     def init_db(cls, db):
+        if not isinstance(cls.get_db(), Proxy):
+            if db == cls.get_db():
+                return
+            raise Exception("Cannot re init_db with different db object")
+
         cls.get_db().initialize(db)
 
     @classmethod

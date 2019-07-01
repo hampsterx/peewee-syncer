@@ -36,8 +36,6 @@ def get_sync_manager(app, start, test=None, db=None, set_async=None):
                 else:
                     raise Exception("start required!")
 
-            state.is_test_run = False
-
     if set_async:
         # Fiddle the db for peewee-async to be happy
         SyncManager._meta.database = db

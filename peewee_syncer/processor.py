@@ -57,6 +57,10 @@ class Processor:
 
         return last_offset, it
 
+    def save(self):
+        with self.sync_manager.get_db().connection_context():
+            self.sync_manager.save()
+
     def process(self, limit, i):
 
         for n in itertools.count():
@@ -94,8 +98,7 @@ class Processor:
                     # this would prevent stuck in loop due to bulk updates
                     log.warning("Final offset remains unchanged")
 
-                with self.sync_manager.get_db().connection_context():
-                    self.sync_manager.save()
+                self.save()
 
         log.info("Completed processing")
 
@@ -114,6 +117,8 @@ class AsyncProcessor(Processor):
 
         return last_offset, it
 
+    async def save(self):
+        await self.object.update(self.sync_manager)
 
     async def process(self, limit, i):
 
@@ -153,7 +158,7 @@ class AsyncProcessor(Processor):
                     # this would prevent stuck in loop due to bulk updates
                     log.warning("Final offset remains unchaged")
 
-                await self.object.update(self.sync_manager)
+                await self.save()
 
         log.info("Completed importing")
 

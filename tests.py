@@ -3,9 +3,10 @@ import logging
 import asyncio
 from dotenv import load_dotenv
 from unittest import TestCase
+from peewee import Proxy
 from peewee_async import MySQLDatabase as AsyncMySQLDatabase, Manager
 from peewee import SqliteDatabase, Model, IntegerField
-from peewee_syncer import get_sync_manager, Processor, AsyncProcessor, LastOffsetQueryIterator
+from peewee_syncer import SyncManager, get_sync_manager, Processor, AsyncProcessor, LastOffsetQueryIterator
 
 logging.getLogger('peewee').setLevel(logging.INFO)
 
@@ -35,9 +36,11 @@ class SyncerTests(BaseTestCase):
 
         db = self.get_sqlite_db()
 
-        from peewee_syncer.models import SyncManager
+        # Re proxy to avoid previous test use
+        SyncManager._meta.database = Proxy()
 
         SyncManager.init_db(db)
+
         SyncManager.create_table()
 
         class TestModel(Model):
@@ -143,7 +146,8 @@ class AsyncSyncerTests(BaseTestCase):
 
         db = self.get_mysql_db()
 
-        from peewee_syncer.models import SyncManager
+        # Re proxy to avoid previous test use
+        SyncManager._meta.database = Proxy()
 
         # Init/Create in sync mode
         SyncManager.init_db(db)
