@@ -4,6 +4,11 @@
 
 
 Tiny tool to help syncronize data using peewee db model for state persistance.
+
+Can work with uniquely id'd records (eg auto insert id's) or non unique (ie dates/timestamps)
+Use `is_unique_key=False` for non unique (see unit tests~)
+If limit is reached `offset` is used to get over the "hump" (ie bulk updates have been done on your table)
+
 See (towards end) for AsyncIO Support
 
 ## Install
@@ -62,7 +67,7 @@ class MyModel(Model):
 
     # Method to get records from last offset
     @classmethod
-    def select_since_id(cls, since, limit):
+    def select_since_id(cls, since, limit, offset=None):
         q = cls.select().where(cls.id > since)
 
         if limit:

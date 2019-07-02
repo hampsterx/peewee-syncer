@@ -53,13 +53,30 @@ class Processor:
     def get_last_offset_and_iterator(self, limit):
         last_offset = self.sync_manager.get_last_offset()
 
-        it = self.it_function(since=last_offset['value'], limit=limit)
+        it = self.it_function(since=last_offset['value'], limit=limit, offset=last_offset['offset'])
 
         return last_offset, it
 
     def save(self):
         with self.sync_manager.get_db().connection_context():
             self.sync_manager.save()
+
+    def update_offset(self, it, limit, last_offset):
+        final_offset = it.get_last_offset(limit=limit)
+
+        if final_offset and final_offset != last_offset['value']:
+            self.sync_manager.set_last_offset(value=final_offset, offset=0)
+        else:
+            # ID based, either we got none/some records and therefor offset should have changed
+            if it.is_unique_key:
+                raise Exception("Aborting Sync. Perhaps your key is not unique?")
+
+            if it.n == limit:
+                offset = last_offset['offset'] + limit
+                self.sync_manager.set_last_offset(value=last_offset['value'], offset=offset)
+                log.warning("Limit reached. Offsetting @ {}".format(offset))
+            else:
+                log.warning("Final offset remains unchanged")
 
     def process(self, limit, i):
 
@@ -79,25 +96,11 @@ class Processor:
                 log.debug("Stopping after iteration (test in progress). Processed {} records".format(it.n))
                 break
 
-            final_offset = it.get_last_offset(limit=limit)
-
             if it.n == 0:
                 log.debug("Caught up, sleeping..")
                 time.sleep(self.sleep_duration)
             else:
-                log.debug(
-                    "Processed records n={} offset={}".format(it.n, final_offset if final_offset else "unchanged"),
-                    extra={'n': it.n, 'offset': final_offset})
-
-                if final_offset != last_offset['value']:
-                    if final_offset:
-                        self.sync_manager.set_last_offset(final_offset, 0)
-                else:
-                    time.sleep(self.sleep_duration)
-                    # todo: if behind current time then abort on second attempt
-                    # this would prevent stuck in loop due to bulk updates
-                    log.warning("Final offset remains unchanged")
-
+                self.update_offset(it=it, limit=limit, last_offset=last_offset)
                 self.save()
 
         log.info("Completed processing")
@@ -113,7 +116,7 @@ class AsyncProcessor(Processor):
 
         last_offset = self.sync_manager.get_last_offset()
 
-        it = await self.it_function(since=last_offset['value'], limit=limit)
+        it = await self.it_function(since=last_offset['value'], limit=limit, offset=last_offset['offset'])
 
         return last_offset, it
 
@@ -138,26 +141,12 @@ class AsyncProcessor(Processor):
                 log.debug("Stopping after iteration (test in progress). Processed {} records".format(it.n))
                 break
 
-            final_offset = it.get_last_offset(limit=limit)
-
             if it.n == 0:
                 log.info("Caught up, sleeping..")
                 await asyncio.sleep(self.sleep_duration)
 
             else:
-                log.debug("Processed records {} - {} / {}".format("" if final_offset else "unchanged", it.n, final_offset),
-                               extra={'n': it.n, 'offset': final_offset})
-
-                if final_offset and final_offset != last_offset['value']:
-                    # todo: sleep based on % of limit
-                    if final_offset:
-                        self.sync_manager.set_last_offset(final_offset, 0)
-                else:
-                    await asyncio.sleep(self.sleep_duration)
-                    # todo: if behind current time then abort on second attempt
-                    # this would prevent stuck in loop due to bulk updates
-                    log.warning("Final offset remains unchaged")
-
+                self.update_offset(it=it, limit=limit, last_offset=last_offset)
                 await self.save()
 
         log.info("Completed importing")
