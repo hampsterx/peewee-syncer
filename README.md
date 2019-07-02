@@ -133,7 +133,7 @@ for i in range(25):
 
 log.info("MySyncModel has {} records".format(MySyncModel.select().count()))
 
-# Run (batch of ten, five iterations. set i=None to run forever)
+# Run (batch of ten, five iterations. set i=0 to run forever)
 processor.process(limit=10, i=5)
 
 log.info("MySyncModel has {} records".format(MySyncModel.select().count()))

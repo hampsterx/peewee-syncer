@@ -78,7 +78,7 @@ class Processor:
             else:
                 log.warning("Final offset remains unchanged")
 
-    def process(self, limit, i):
+    def process(self, limit, i=0, stop_when_caught_up=False):
 
         for n in itertools.count():
 
@@ -97,13 +97,20 @@ class Processor:
                 break
 
             if it.n == 0:
-                log.debug("Caught up, sleeping..")
-                time.sleep(self.sleep_duration)
+                if stop_when_caught_up:
+                    log.info("Caught up, stopping..")
+                    return
+                else:
+                    log.debug("Caught up, sleeping..")
+                    time.sleep(self.sleep_duration)
             else:
                 self.update_offset(it=it, limit=limit, last_offset=last_offset)
                 self.save()
 
         log.info("Completed processing")
+
+    def process_until_complete(self, limit):
+        return self.process(self, limit=limit, i=0, stop_when_caught_up=True)
 
 
 class AsyncProcessor(Processor):
@@ -123,7 +130,7 @@ class AsyncProcessor(Processor):
     async def save(self):
         await self.object.update(self.sync_manager)
 
-    async def process(self, limit, i):
+    async def process(self, limit, i=0, stop_when_caught_up=False):
 
         for n in itertools.count():
 
@@ -142,8 +149,12 @@ class AsyncProcessor(Processor):
                 break
 
             if it.n == 0:
-                log.info("Caught up, sleeping..")
-                await asyncio.sleep(self.sleep_duration)
+                if stop_when_caught_up:
+                    log.info("Caught up, stopping..")
+                    return
+                else:
+                    log.info("Caught up, sleeping..")
+                    await asyncio.sleep(self.sleep_duration)
 
             else:
                 self.update_offset(it=it, limit=limit, last_offset=last_offset)
@@ -151,3 +162,5 @@ class AsyncProcessor(Processor):
 
         log.info("Completed importing")
 
+    async def process_until_complete(self, limit):
+        return await self.process(self, limit=limit, i=0, stop_when_caught_up=True)
