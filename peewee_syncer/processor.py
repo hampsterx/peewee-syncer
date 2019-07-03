@@ -66,6 +66,7 @@ class Processor:
 
         if final_offset and final_offset != last_offset['value']:
             self.sync_manager.set_last_offset(value=final_offset, offset=0)
+            return True
         else:
             # ID based, either we got none/some records and therefor offset should have changed
             if it.is_unique_key:
@@ -75,8 +76,10 @@ class Processor:
                 offset = last_offset['offset'] + limit
                 self.sync_manager.set_last_offset(value=last_offset['value'], offset=offset)
                 log.warning("Limit reached. Offsetting @ {}".format(offset))
+                return True
             else:
-                log.warning("Final offset remains unchanged")
+                log.debug("Final offset remains unchanged")
+                return False
 
     def process(self, limit, i=0, stop_when_caught_up=False):
 
@@ -104,8 +107,13 @@ class Processor:
                     log.debug("Caught up, sleeping..")
                     time.sleep(self.sleep_duration)
             else:
-                self.update_offset(it=it, limit=limit, last_offset=last_offset)
-                self.save()
+                updated = self.update_offset(it=it, limit=limit, last_offset=last_offset)
+                if updated:
+                    self.save()
+                else:
+                    if stop_when_caught_up:
+                        log.info("No changes, stopping..")
+                        return
 
         log.info("Completed processing")
 
@@ -157,8 +165,13 @@ class AsyncProcessor(Processor):
                     await asyncio.sleep(self.sleep_duration)
 
             else:
-                self.update_offset(it=it, limit=limit, last_offset=last_offset)
-                await self.save()
+                updated = self.update_offset(it=it, limit=limit, last_offset=last_offset)
+                if updated:
+                    await self.save()
+                else:
+                    if stop_when_caught_up:
+                        log.info("No changes, stopping..")
+                        return
 
         log.info("Completed importing")
 
