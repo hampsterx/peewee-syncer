@@ -2,6 +2,8 @@ import time
 import itertools
 import logging
 import asyncio
+import backoff
+from peewee import OperationalError
 from collections import deque
 
 log = logging.getLogger('peewee_syncer')
@@ -50,6 +52,7 @@ class Processor:
             return True
         return False
 
+    @backoff.on_exception(backoff.expo,  (OperationalError,), max_tries=8)
     def get_last_offset_and_iterator(self, limit):
         last_offset = self.sync_manager.get_last_offset()
 
@@ -127,6 +130,7 @@ class AsyncProcessor(Processor):
         super().__init__(sync_manager=sync_manager, it_function=it_function, process_function=process_function, sleep_duration=sleep_duration)
         self.object = object
 
+    @backoff.on_exception(backoff.expo, (OperationalError,), max_tries=8)
     async def get_last_offset_and_iterator(self, limit):
 
         last_offset = self.sync_manager.get_last_offset()
