@@ -22,6 +22,7 @@ setup(name='peewee-syncer',
       install_requires=[
             'peewee>=3.8.1',
             'python-dateutil>=2.7.5',
+            'backoff>=1.8.0',
       ],
     extras_require={
         "async": ["peewee-async==0.6.0a0"],
